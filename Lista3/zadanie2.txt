@@ -1,0 +1,23 @@
+#!/bin/bash
+
+awk 'BEGIN {
+print "==============================================================================="
+printf "%-18s %-14s %-13s %-20s %-10s\n", "NAME", "PID", "PPID", "OPENED FILES", "STATE"
+print "==============================================================================="}'
+
+find /proc -maxdepth 1 -mindepth 1 -type d -regex ".*/[0-9]*" | while read line; do
+
+    if [ -d "$line" ]; then
+
+        name=$(cat "$line"/status | grep Name | awk '{print $2}')
+        pid=$(cat "$line"/status | grep -m1 Pid | awk '{print $2}')
+        ppid=$(cat "$line"/status | grep PPid | awk '{print $2}')
+        ofiles=$(sudo ls "$line"/fd | wc -l)
+        states=$(cat "$line"/status | grep State | cut -d " " -f2 | tr '()' '  ')
+        state=$(echo $states)
+        
+        awk 'BEGIN { 
+        printf "%-18s %-15s %-16s %-15s %-10s\n", "'$name'", "'$pid'", "'$ppid'", "'$ofiles'", "'$state'" }'
+    fi
+
+done

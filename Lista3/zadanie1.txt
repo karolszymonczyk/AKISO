@@ -1,0 +1,207 @@
+#!/bin/bash
+
+maxNet=200
+counter=0
+cput=(0 0 0 0 0 0 0 0 0 0)
+csnt=(0 0 0 0 0 0 0 0 0 0)
+days=0
+hours=0
+minutes=0
+seconds=0
+r=$(echo $(tput setab 1)"??"$(tput sgr0))
+g=$(echo $(tput setab 2)"??"$(tput sgr0))
+y=$(echo $(tput setab 3)"??"$(tput sgr0))
+
+flex_graph(){  
+    for((m=0; m<11; m++))do
+        tput cud1
+    done
+}
+
+move_columnsCPUT(){
+    for((k=9; k>0; k--)) do
+        cput[$k]=${cput[$((k-1))]}
+    done  
+    cput[0]=$1
+}
+
+move_columnsCSNT(){
+    for((k=9; k>0; k--)) do
+        csnt[$k]=${csnt[$((k-1))]}
+    done  
+    csnt[0]=$1
+}
+
+draw_column (){
+    mover=$(($2 * 3 + $3))
+    high=$1
+    tput home
+    tput cud1
+    flex_graph
+
+    for ((i=0; i<((20-$high)); i++)) do 
+        echo
+        if [ $2 -gt 0 ]; then
+            tput cuf $mover
+        else
+            tput cuf $3
+        fi
+    done    
+
+    for ((i=0; i<$high; i++)) do 
+        if [ $high -lt 6 -o $3 -gt 10 ]; then
+            echo $g
+        elif [ $high -gt 5 -a $high -lt 15 ]; then
+            echo $y
+        else
+            echo $r
+        fi
+        if [ $2 -gt 0 ]; then
+            tput cuf $mover
+        else
+            tput cuf $3
+        fi
+    done
+}
+
+while (true) do
+
+    #net
+    ((counter++))
+
+    recived1=$(cat /proc/net/dev | grep enp0s3 | awk '{print $2}')
+    transmited1=$(cat /proc/net/dev | grep enp0s3 | awk '{print $10}')
+
+    sleep 0.7
+
+    recived2=$(cat /proc/net/dev | grep enp0s3 | awk '{print $2}')
+    transmited2=$(cat /proc/net/dev | grep enp0s3 | awk '{print $10}')
+    sumflow=$((sumflow + recived2 + transmited2 - recived1 - transmited1))
+
+    currentSpeed=$((recived2 + transmited2 - recived1 - transmited1))
+    currentUnit='B'
+    averageSpeed=$((sumflow / counter))
+    averageUnit='B'
+    averageS=$((sumflow / counter))
+
+    clear
+
+    #uptime
+    uptime=$( cat /proc/uptime | awk '{print $1}' )
+    uptime=$( echo "scale=0; $uptime / 1" | bc -l )
+    tmp=86400
+    days=$( echo "$uptime / $tmp" | bc )
+    uptime=$((uptime - (days * tmp)))
+    tmp=3600
+    hours=$( echo "$uptime / $tmp" | bc )
+    uptime=$((uptime - (hours * tmp)))
+    tmp=60
+    minutes=$( echo "$uptime / $tmp" | bc )
+    uptime=$((uptime - (minutes * tmp)))
+    seconds=$uptime
+    echo "Uptime : $(tput setaf 2)$days d $hours h $minutes m $seconds s$(tput setaf 7)"
+
+    #battery
+    battery=$(cat /sys/class/power_supply/BAT0/uevent | grep POWER_SUPPLY_CAPACITY= | awk -F = '{print $2}')
+    echo "Battery left : $(tput setaf 2)$battery%$(tput setaf 7)"
+
+    #cpu
+    cpu1=$(cat /proc/loadavg | cut -c 1-4)
+    cpu2=$(cat /proc/loadavg | cut -c 5-9)
+    cpu3=$(cat /proc/loadavg | cut -c 10-14)
+    echo "CPU usage "
+    echo "          1 minute : $(tput setaf 2)$cpu1$(tput setaf 7)"
+    echo "          5 minutes : $(tput setaf 2)$cpu2$(tput setaf 7)"
+    echo "          15 minutes : $(tput setaf 2)$cpu3$(tput setaf 7)"
+
+    #current speed
+    if [ $currentSpeed -gt 1023999 ]; then
+        currentUnit='MB'
+        currentSpeed=$((currentSpeed / 1024000))
+    elif [ $currentSpeed -gt 1023 ] && [ $currentSpeed -lt 1023999 ]; then
+        currentUnit='kB'
+        currentSpeed=$((currentSpeed / 1024))
+    else
+        currentUnit='B'
+    fi
+    echo "Current Speed : $(tput setaf 2)$currentSpeed $currentUnit$(tput setaf 7)"
+
+    #average speed
+    if [ $averageSpeed -gt 1023999 ]; then
+        averageUnit='MB'
+        averageSpeed=$((averageSpeed / 1024000))
+    elif [ $averageSpeed -gt 1023 ] && [ $averageSpeed -lt 1023999 ]; then
+        averageUnit='kB'
+        averageSpeed=$((averageSpeed / 1024))
+    else
+        averageUnitt='B'
+    fi
+    echo "Average Speed : $(tput setaf 2)$averageSpeed $averageUnit$(tput setaf 7)"
+
+    #graph
+
+    #CPU
+    a=$(echo $cpu1*100 | bc )
+    int=$(echo "scale=0; $a / 1" | bc -l )
+    sk=$((int / 20))
+
+    move_columnsCPUT $sk
+
+    b=$(echo $averageS | bc )
+    bint=$(echo "scale=0; $b / 1" | bc -l )
+    bk=$(((bint / 10000)))
+
+    move_columnsCSNT $bk
+
+    tput cud1
+    echo "             CPU in 1 minute                                      Average Speed"
+    tput home
+    flex_graph
+
+    echo " 4.0                                                $((maxNet)) kB"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo " 3.0                                                $(((maxNet*3)/4))"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo " 2.0                                                $((maxNet/2))"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo " 1.0                                                $((maxNet/4))"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo "  |                                                  |"
+    echo "  0--|--|--|--|--|--|--|--|--|--|- [s]              0--|--|--|--|--|--|--|--|--|--|- [s]"
+
+    
+    n=0
+
+    for k in "${cput[@]}" 
+    do
+        if [ $k -gt 19 ]; then
+            k=19
+        fi
+        draw_column $k $n 5
+        ((n++))
+    done
+    
+    l=0
+
+    for o in "${csnt[@]}" 
+    do
+        if [ $o -gt 19 ]; then
+            o=19
+        fi
+        draw_column $o $l 56
+        ((l++))
+    done
+
+done

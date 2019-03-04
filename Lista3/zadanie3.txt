@@ -1,0 +1,19 @@
+#!/bin/bash
+
+curl --request GET \
+  --url 'https://api.thecatapi.com/v1/images/search?format=json' \
+  --header 'Content-Type: application/json' \
+  --header 'x-api-key: 03f4dd02-7225-4399-b467-b526cba13f62' > pic.json
+
+wget http://api.icndb.com/jokes/random
+
+joke=$(cat random | jq '.value.joke')
+rm random
+
+cut -c 2-112 pic.json > image.json
+
+url=$(cat image.json | jq -r '.url' )
+wget $url -O cats.jpg
+jp2a cats.jpg
+
+echo $joke
